@@ -1,0 +1,643 @@
+<title>Employee Attrition Risk Predictor</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --ink-primary:    #0b0b0b;
+    --ink-secondary:  #52514e;
+    --ink-muted:      #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+
+    --blue:    #2a78d6;
+    --orange:  #eb6834;
+    --aqua:    #1baf7a;
+    --yellow:  #eda100;
+    --magenta: #e87ba4;
+    --green:   #008300;
+    --violet:  #4a3aa7;
+    --red:     #e34948;
+
+    --status-good:     #0ca30c;
+    --status-warning:  #c98500;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 6px 20px rgba(11,11,11,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --ink-primary:    #ffffff;
+      --ink-secondary:  #c3c2b7;
+      --ink-muted:      #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --blue:    #3987e5;
+      --orange:  #d95926;
+      --aqua:    #199e70;
+      --yellow:  #c98500;
+      --magenta: #d55181;
+      --green:   #008300;
+      --violet:  #9085e9;
+      --red:     #e66767;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 24px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --ink-primary:    #ffffff;
+    --ink-secondary:  #c3c2b7;
+    --ink-muted:      #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --blue:    #3987e5;
+    --orange:  #d95926;
+    --aqua:    #199e70;
+    --yellow:  #c98500;
+    --magenta: #d55181;
+    --green:   #008300;
+    --violet:  #9085e9;
+    --red:     #e66767;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 24px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page);
+    color: var(--ink-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+
+  a { color: var(--blue); }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    padding: 14px 24px;
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar h1 {
+    font-size: 17px; margin: 0; font-weight: 700; letter-spacing: -0.01em;
+  }
+  .topbar .subtitle {
+    font-size: 12.5px; color: var(--ink-secondary); margin-top: 2px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .model-badge {
+    display: flex; gap: 6px; align-items: center;
+    font-size: 11.5px; color: var(--ink-secondary);
+    background: var(--page); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 12px;
+  }
+  .model-badge b { color: var(--ink-primary); font-weight: 700; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-good); flex: none; }
+
+  .theme-toggle {
+    border: 1px solid var(--border); background: var(--page);
+    color: var(--ink-primary); border-radius: 8px;
+    width: 34px; height: 34px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .theme-toggle:hover { border-color: var(--baseline); }
+
+  main.layout {
+    max-width: 1280px; margin: 0 auto;
+    padding: 22px 24px 60px;
+    display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    main.layout { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px;
+  }
+
+  .card h2 {
+    font-size: 14.5px; margin: 0 0 2px; font-weight: 700;
+  }
+  .card .card-sub {
+    font-size: 12px; color: var(--ink-secondary); margin: 0 0 16px;
+  }
+
+  .actions-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  button.btn {
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--page); color: var(--ink-primary);
+    transition: border-color .12s ease, background .12s ease;
+  }
+  button.btn:hover { border-color: var(--baseline); }
+  button.btn.primary {
+    background: var(--blue); border-color: var(--blue); color: #fff;
+  }
+  button.btn.primary:hover { filter: brightness(1.06); }
+
+  fieldset.field-group {
+    border: none; margin: 0 0 22px; padding: 0;
+  }
+  fieldset.field-group legend {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-secondary); padding: 0 0 10px; width: 100%;
+    border-bottom: 1px solid var(--grid); margin-bottom: 14px;
+  }
+  .field-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px;
+  }
+  @media (max-width: 620px) { .field-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 12.5px; font-weight: 600; color: var(--ink-primary);
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .field label .val {
+    font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums;
+  }
+  .field select, .field input[type="range"] { width: 100%; }
+
+  .field select {
+    font-family: inherit; font-size: 13px; padding: 7px 8px;
+    border-radius: 7px; border: 1px solid var(--border);
+    background: var(--page); color: var(--ink-primary);
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 4px; background: var(--grid);
+    accent-color: var(--blue);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--blue); border: 2px solid var(--surface-1);
+    box-shadow: 0 0 0 1px var(--blue);
+    cursor: pointer; margin-top: -1px;
+  }
+
+  /* --- results panel --- */
+  .results-card { position: sticky; top: 84px; }
+
+  .risk-block { text-align: center; padding: 6px 0 18px; }
+  .risk-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 4px 12px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .risk-label.low { background: color-mix(in srgb, var(--status-good) 16%, transparent); color: var(--status-good); }
+  .risk-label.medium { background: color-mix(in srgb, var(--status-warning) 18%, transparent); color: var(--status-warning); }
+  .risk-label.high { background: color-mix(in srgb, var(--status-critical) 16%, transparent); color: var(--status-critical); }
+
+  .prob-figure {
+    font-size: 46px; font-weight: 800; line-height: 1; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .prob-caption { font-size: 12px; color: var(--ink-secondary); margin-top: 6px; }
+
+  .gauge-track {
+    position: relative; height: 10px; border-radius: 6px; margin: 18px 2px 6px;
+    background: linear-gradient(90deg,
+      var(--status-good) 0%, var(--status-good) 30%,
+      var(--status-warning) 30%, var(--status-warning) 60%,
+      var(--status-critical) 60%, var(--status-critical) 100%);
+    opacity: 0.9;
+  }
+  .gauge-marker {
+    position: absolute; top: -5px; width: 3px; height: 20px; border-radius: 2px;
+    background: var(--ink-primary); box-shadow: 0 0 0 2px var(--surface-1);
+    transform: translateX(-50%);
+    transition: left .18s ease;
+  }
+  .gauge-scale {
+    display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-muted);
+    margin: 4px 2px 0;
+  }
+
+  .threshold-row {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--grid);
+  }
+  .verdict {
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .verdict.retain { color: var(--status-good); }
+  .verdict.risk { color: var(--status-critical); }
+
+  .contrib-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--grid); }
+  .contrib-row {
+    display: grid; grid-template-columns: 140px 1fr 46px; align-items: center;
+    gap: 8px; font-size: 11.5px; margin-bottom: 8px;
+  }
+  .contrib-label { color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contrib-bar-track { position: relative; height: 8px; background: var(--grid); border-radius: 4px; overflow: hidden; }
+  .contrib-bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+  .contrib-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+
+  .metrics-footer {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--grid);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .metric-tile { text-align: center; }
+  .metric-tile .m-val { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .metric-tile .m-lab { font-size: 10px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+  .privacy-note {
+    font-size: 11px; color: var(--ink-muted); margin-top: 16px; text-align: center; line-height: 1.5;
+  }
+
+  footer.page-footer {
+    max-width: 1280px; margin: 0 auto; padding: 0 24px 40px;
+    font-size: 11.5px; color: var(--ink-muted); text-align: center;
+  }
+</style>
+
+<header class="topbar">
+  <div>
+    <h1>Employee Attrition Risk Predictor</h1>
+    <div class="subtitle">Interactive test bench for the model selected in <code>nadeenFinal.ipynb</code> (Part 6)</div>
+  </div>
+  <div class="topbar-right">
+    <div class="model-badge"><span class="dot"></span> <b id="model-name-badge">Logistic Regression</b> · ROC-AUC <span id="auc-badge"></span> · Recall <span id="recall-badge"></span></div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light / dark" aria-label="Toggle theme">◑</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="card">
+    <h2>Employee Profile</h2>
+    <p class="card-sub">Enter — or load an example — HR record. The engineered features from Part 4 of the notebook (income-per-experience, promotion-gap ratio, overtime × job level, etc.) are computed automatically from these raw inputs, exactly as in the pipeline.</p>
+
+    <div class="actions-row">
+      <button class="btn primary" id="btn-predict">Predict</button>
+      <button class="btn" id="btn-high-risk">Load high-risk example</button>
+      <button class="btn" id="btn-low-risk">Load low-risk example</button>
+      <button class="btn" id="btn-reset">Reset to dataset averages</button>
+    </div>
+
+    <form id="profile-form">
+      <fieldset class="field-group">
+        <legend>Demographics</legend>
+        <div class="field-grid" id="group-demographics"></div>
+      </fieldset>
+      <fieldset class="field-group">
+        <legend>Job Profile</legend>
+        <div class="field-grid" id="group-job"></div>
+      </fieldset>
+      <fieldset class="field-group">
+        <legend>Compensation &amp; Career History</legend>
+        <div class="field-grid" id="group-compensation"></div>
+      </fieldset>
+      <fieldset class="field-group">
+        <legend>Satisfaction &amp; Performance</legend>
+        <div class="field-grid" id="group-satisfaction"></div>
+      </fieldset>
+    </form>
+  </section>
+
+  <aside class="card results-card">
+    <h2>Prediction</h2>
+    <p class="card-sub">Runs entirely client-side using the exported model coefficients.</p>
+
+    <div class="risk-block">
+      <div class="risk-label low" id="risk-tag">LOW RISK</div>
+      <div class="prob-figure" id="prob-figure">16%</div>
+      <div class="prob-caption">predicted probability of attrition</div>
+
+      <div class="gauge-track"><div class="gauge-marker" id="gauge-marker" style="left:16%"></div></div>
+      <div class="gauge-scale"><span>0%</span><span>30%</span><span>60%</span><span>100%</span></div>
+    </div>
+
+    <div class="threshold-row">
+      <div class="field">
+        <label for="threshold">Decision threshold <span class="val" id="threshold-val">0.50</span></label>
+        <input type="range" id="threshold" min="0.05" max="0.95" step="0.01" value="0.5">
+      </div>
+      <div class="verdict retain" id="verdict">Predicted: RETAINED (probability below threshold)</div>
+    </div>
+
+    <div class="contrib-section">
+      <h2 style="margin-bottom:2px;">Top Contributing Factors</h2>
+      <p class="card-sub" style="margin-bottom:12px;">Coefficient × standardized value, for this employee — red pushes risk up, green pushes it down (see notebook §5.7).</p>
+      <div id="contrib-list"></div>
+    </div>
+
+    <div class="metrics-footer" id="metrics-footer"></div>
+    <div class="privacy-note">No data leaves this page — prediction runs in your browser using the trained model's exported weights.</div>
+  </aside>
+</main>
+
+<footer class="page-footer">
+  Model trained and evaluated in <code>nadeenFinal.ipynb</code> on the IBM HR Analytics Employee Attrition dataset (1,470 employees). This tool is for exploration/education, not a substitute for a full HR review process.
+</footer>
+
+<script>
+const MODEL = {"model_name":"Logistic Regression","metrics":{"Accuracy":0.779,"Precision":0.388,"Recall":0.66,"F1 Score":0.488,"ROC-AUC":0.806},"intercept":-1.2517907989028434,"numeric":[{"name":"Age","mean":36.99829931972789,"scale":9.174239138716262},{"name":"DailyRate","mean":803.9914965986394,"scale":401.1687494982014},{"name":"DistanceFromHome","mean":9.357993197278912,"scale":8.176324543923926},{"name":"Education","mean":2.9064625850340136,"scale":1.0275585639473874},{"name":"EnvironmentSatisfaction","mean":2.7168367346938775,"scale":1.0882436985777129},{"name":"HourlyRate","mean":65.5,"scale":20.364660266135107},{"name":"JobInvolvement","mean":2.7372448979591835,"scale":0.7033742009454156},{"name":"JobLevel","mean":2.076530612244898,"scale":1.09152277894419},{"name":"JobSatisfaction","mean":2.7193877551020407,"scale":1.1101717244684475},{"name":"MonthlyIncome","mean":6417.077380952381,"scale":4332.582810655678},{"name":"MonthlyRate","mean":14390.239795918367,"scale":7189.775565502294},{"name":"NumCompaniesWorked","mean":2.677721088435374,"scale":2.4473809916166926},{"name":"PercentSalaryHike","mean":15.239795918367347,"scale":3.6775169028293515},{"name":"PerformanceRating","mean":3.1573129251700682,"scale":0.36409554892157714},{"name":"RelationshipSatisfaction","mean":2.7389455782312924,"scale":1.0867383533946666},{"name":"StockOptionLevel","mean":0.7908163265306123,"scale":0.8454262783438878},{"name":"TotalWorkingYears","mean":11.187925170068027,"scale":7.32496828122355},{"name":"TrainingTimesLastYear","mean":2.679421768707483,"scale":1.014621845210236},{"name":"WorkLifeBalance","mean":2.75765306122449,"scale":0.717807462417934},{"name":"YearsAtCompany","mean":6.664115646258503,"scale":4.971374322387383},{"name":"YearsInCurrentRole","mean":4.2312925170068025,"scale":3.567985058407453},{"name":"YearsSinceLastPromotion","mean":1.9204931972789117,"scale":2.479647789125905},{"name":"YearsWithCurrManager","mean":4.181972789115647,"scale":3.516791332759328},{"name":"OverTime_Flag","mean":0.2891156462585034,"scale":0.45335172807328233},{"name":"IncomePerYearWorked","mean":586.0086082214273,"scale":279.6105918023957},{"name":"TenureRatio","mean":0.5734684353714119,"scale":0.2731682261393715},{"name":"PromotionGapRatio","mean":0.2260094471112431,"scale":0.2558223264296499},{"name":"AvgSatisfaction","mean":2.733205782312925,"scale":0.5100860389948437},{"name":"OverTime_x_JobLevel","mean":1.1139455782312926,"scale":1.849510712212636},{"name":"IsJobHopper","mean":0.13010204081632654,"scale":0.33641566519969524},{"name":"ManagerStability","mean":0.4792495616302441,"scale":0.27465242549954166}],"categorical":[{"column":"BusinessTravel","categories":["Non-Travel","Travel_Frequently","Travel_Rarely"],"dropped_index":null,"kept_categories":["Non-Travel","Travel_Frequently","Travel_Rarely"]},{"column":"Department","categories":["Human Resources","Research & Development","Sales"],"dropped_index":null,"kept_categories":["Human Resources","Research & Development","Sales"]},{"column":"EducationField","categories":["Human Resources","Life Sciences","Marketing","Medical","Other","Technical Degree"],"dropped_index":null,"kept_categories":["Human Resources","Life Sciences","Marketing","Medical","Other","Technical Degree"]},{"column":"Gender","categories":["Female","Male"],"dropped_index":0,"kept_categories":["Male"]},{"column":"JobRole","categories":["Healthcare Representative","Human Resources","Laboratory Technician","Manager","Manufacturing Director","Research Director","Research Scientist","Sales Executive","Sales Representative"],"dropped_index":null,"kept_categories":["Healthcare Representative","Human Resources","Laboratory Technician","Manager","Manufacturing Director","Research Director","Research Scientist","Sales Executive","Sales Representative"]},{"column":"MaritalStatus","categories":["Divorced","Married","Single"],"dropped_index":null,"kept_categories":["Divorced","Married","Single"]},{"column":"OverTime","categories":["No","Yes"],"dropped_index":0,"kept_categories":["Yes"]}],"coefficients":[-0.22310430600073278,-0.1846111434983937,0.31709711672117075,0.015021615484894698,-0.26220785422994325,-0.049054277074200875,-0.3037922102779428,0.7864261850007028,-0.2149746551061322,-0.5640791629906958,0.02277976226742286,0.5835124388076767,-0.2383010877581142,0.11247553529865746,-0.07031952476612865,-0.20779495715712157,-0.37829001483902774,-0.1494578366515449,-0.1172446778523549,-0.40444577228819756,-0.17710195210747406,0.6456142677850677,0.3626204529864509,0.2324953214591485,0.209343257168427,0.16639626028303273,-0.14031472641601403,-0.33552322822614944,0.508742227612955,-0.0031827516989420346,-0.5430337344443538,-1.0253135735433787,0.860848889222517,0.13399759356097418,-0.19458422369067718,-0.21293825507031097,0.377055388001094,0.746407365137879,-0.2803173996679695,0.014041094240434074,-0.15473401501806772,-0.7685313417693906,0.4126672063172217,0.3644393455538237,-0.6466039279524195,0.47885063215891505,1.1481751168789396,-0.29819023986811605,-0.31108961499884974,-1.3446572430045935,-0.09445640431007811,-0.11836688980210301,1.1558714801384107,-0.4358442843586259,-0.09921488489585067,0.5045920784945824,0.09659364311779449],"feature_names_out":["num__Age","num__DailyRate","num__DistanceFromHome","num__Education","num__EnvironmentSatisfaction","num__HourlyRate","num__JobInvolvement","num__JobLevel","num__JobSatisfaction","num__MonthlyIncome","num__MonthlyRate","num__NumCompaniesWorked","num__PercentSalaryHike","num__PerformanceRating","num__RelationshipSatisfaction","num__StockOptionLevel","num__TotalWorkingYears","num__TrainingTimesLastYear","num__WorkLifeBalance","num__YearsAtCompany","num__YearsInCurrentRole","num__YearsSinceLastPromotion","num__YearsWithCurrManager","num__OverTime_Flag","num__IncomePerYearWorked","num__TenureRatio","num__PromotionGapRatio","num__AvgSatisfaction","num__OverTime_x_JobLevel","num__IsJobHopper","num__ManagerStability","cat__BusinessTravel_Non-Travel","cat__BusinessTravel_Travel_Frequently","cat__BusinessTravel_Travel_Rarely","cat__Department_Human Resources","cat__Department_Research & Development","cat__Department_Sales","cat__EducationField_Human Resources","cat__EducationField_Life Sciences","cat__EducationField_Marketing","cat__EducationField_Medical","cat__EducationField_Other","cat__EducationField_Technical Degree","cat__Gender_Male","cat__JobRole_Healthcare Representative","cat__JobRole_Human Resources","cat__JobRole_Laboratory Technician","cat__JobRole_Manager","cat__JobRole_Manufacturing Director","cat__JobRole_Research Director","cat__JobRole_Research Scientist","cat__JobRole_Sales Executive","cat__JobRole_Sales Representative","cat__MaritalStatus_Divorced","cat__MaritalStatus_Married","cat__MaritalStatus_Single","cat__OverTime_Yes"],"numeric_defaults":{"Age":36.0,"DailyRate":802.0,"DistanceFromHome":7.0,"Education":3.0,"EnvironmentSatisfaction":3.0,"HourlyRate":66.0,"JobInvolvement":3.0,"JobLevel":2.0,"JobSatisfaction":3.0,"MonthlyIncome":4919.0,"MonthlyRate":14235.5,"NumCompaniesWorked":2.0,"PercentSalaryHike":14.0,"PerformanceRating":3.0,"RelationshipSatisfaction":3.0,"StockOptionLevel":1.0,"TotalWorkingYears":10.0,"TrainingTimesLastYear":3.0,"WorkLifeBalance":3.0,"YearsAtCompany":5.0,"YearsInCurrentRole":3.0,"YearsSinceLastPromotion":1.0,"YearsWithCurrManager":3.0,"OverTime_Flag":0.0,"IncomePerYearWorked":558.2929292929293,"TenureRatio":0.6101694915254238,"PromotionGapRatio":0.14285714285714285,"AvgSatisfaction":2.75,"OverTime_x_JobLevel":0.0,"IsJobHopper":0.0,"ManagerStability":0.5},"categorical_defaults":{"BusinessTravel":"Travel_Rarely","Department":"Research & Development","EducationField":"Life Sciences","Gender":"Male","JobRole":"Sales Executive","MaritalStatus":"Married","OverTime":"No"},"attrition_base_rate":0.16122448979591836};
+
+// ---------------------------------------------------------------
+// Field definitions (raw inputs only — engineered features are
+// derived in JS, mirroring notebook Part 4)
+// ---------------------------------------------------------------
+const LIKERT4 = [["1","Low"],["2","Medium"],["3","High"],["4","Very High"]];
+
+const SLIDER_FIELDS = [
+  { name: "Age", label: "Age", min: 18, max: 60, step: 1, unit: "yrs", group: "demographics" },
+  { name: "DistanceFromHome", label: "Distance From Home", min: 1, max: 29, step: 1, unit: "km", group: "demographics" },
+  { name: "MonthlyIncome", label: "Monthly Income", min: 1000, max: 20000, step: 100, unit: "$", prefix: true, group: "compensation" },
+  { name: "PercentSalaryHike", label: "Percent Salary Hike", min: 11, max: 25, step: 1, unit: "%", group: "compensation" },
+  { name: "DailyRate", label: "Daily Rate", min: 100, max: 1500, step: 10, unit: "$", prefix: true, group: "compensation" },
+  { name: "HourlyRate", label: "Hourly Rate", min: 30, max: 100, step: 1, unit: "$", prefix: true, group: "compensation" },
+  { name: "MonthlyRate", label: "Monthly Rate", min: 2000, max: 27000, step: 100, unit: "$", prefix: true, group: "compensation" },
+  { name: "NumCompaniesWorked", label: "Companies Worked At", min: 0, max: 9, step: 1, unit: "", group: "compensation" },
+  { name: "TotalWorkingYears", label: "Total Working Years", min: 0, max: 40, step: 1, unit: "yrs", group: "compensation" },
+  { name: "TrainingTimesLastYear", label: "Trainings Last Year", min: 0, max: 6, step: 1, unit: "", group: "compensation" },
+  { name: "YearsAtCompany", label: "Years At Company", min: 0, max: 40, step: 1, unit: "yrs", group: "compensation" },
+  { name: "YearsInCurrentRole", label: "Years In Current Role", min: 0, max: 18, step: 1, unit: "yrs", group: "compensation" },
+  { name: "YearsSinceLastPromotion", label: "Years Since Last Promotion", min: 0, max: 15, step: 1, unit: "yrs", group: "compensation" },
+  { name: "YearsWithCurrManager", label: "Years With Current Manager", min: 0, max: 17, step: 1, unit: "yrs", group: "compensation" },
+];
+
+const SELECT_FIELDS = [
+  { name: "Gender", label: "Gender", group: "demographics", options: ["Female","Male"].map(v => [v, v]) },
+  { name: "MaritalStatus", label: "Marital Status", group: "demographics", options: ["Single","Married","Divorced"].map(v => [v, v]) },
+  { name: "Education", label: "Education Level", group: "demographics", options: [["1","Below College"],["2","College"],["3","Bachelor"],["4","Master"],["5","Doctor"]] },
+  { name: "EducationField", label: "Education Field", group: "demographics", options: ["Life Sciences","Medical","Marketing","Technical Degree","Human Resources","Other"].map(v => [v, v]) },
+
+  { name: "Department", label: "Department", group: "job", options: ["Research & Development","Sales","Human Resources"].map(v => [v, v]) },
+  { name: "JobRole", label: "Job Role", group: "job", options: ["Sales Executive","Research Scientist","Laboratory Technician","Manufacturing Director","Healthcare Representative","Manager","Sales Representative","Research Director","Human Resources"].map(v => [v, v]) },
+  { name: "JobLevel", label: "Job Level", group: "job", options: [["1","Level 1 (Entry)"],["2","Level 2"],["3","Level 3"],["4","Level 4"],["5","Level 5 (Executive)"]] },
+  { name: "BusinessTravel", label: "Business Travel", group: "job", options: [["Travel_Rarely","Rarely"],["Travel_Frequently","Frequently"],["Non-Travel","Non-Travel"]] },
+  { name: "OverTime", label: "Works Overtime", group: "job", options: [["No","No"],["Yes","Yes"]] },
+  { name: "JobInvolvement", label: "Job Involvement", group: "job", options: LIKERT4 },
+
+  { name: "StockOptionLevel", label: "Stock Option Level", group: "compensation", options: [["0","Level 0 (None)"],["1","Level 1"],["2","Level 2"],["3","Level 3"]] },
+
+  { name: "EnvironmentSatisfaction", label: "Environment Satisfaction", group: "satisfaction", options: LIKERT4 },
+  { name: "JobSatisfaction", label: "Job Satisfaction", group: "satisfaction", options: LIKERT4 },
+  { name: "RelationshipSatisfaction", label: "Relationship Satisfaction", group: "satisfaction", options: LIKERT4 },
+  { name: "WorkLifeBalance", label: "Work-Life Balance", group: "satisfaction", options: [["1","Bad"],["2","Good"],["3","Better"],["4","Best"]] },
+  { name: "PerformanceRating", label: "Performance Rating", group: "satisfaction", options: [["3","Excellent"],["4","Outstanding"]] },
+];
+
+const FRIENDLY_NAMES = {
+  Age: "Age", DailyRate: "Daily Rate", DistanceFromHome: "Distance From Home", Education: "Education Level",
+  EnvironmentSatisfaction: "Environment Satisfaction", HourlyRate: "Hourly Rate", JobInvolvement: "Job Involvement",
+  JobLevel: "Job Level", JobSatisfaction: "Job Satisfaction", MonthlyIncome: "Monthly Income", MonthlyRate: "Monthly Rate",
+  NumCompaniesWorked: "Companies Worked At", PercentSalaryHike: "Salary Hike %", PerformanceRating: "Performance Rating",
+  RelationshipSatisfaction: "Relationship Satisfaction", StockOptionLevel: "Stock Option Level",
+  TotalWorkingYears: "Total Working Years", TrainingTimesLastYear: "Trainings Last Year", WorkLifeBalance: "Work-Life Balance",
+  YearsAtCompany: "Years At Company", YearsInCurrentRole: "Years In Role", YearsSinceLastPromotion: "Years Since Promotion",
+  YearsWithCurrManager: "Years With Manager", OverTime_Flag: "Works Overtime", IncomePerYearWorked: "Income / Experience Yr",
+  TenureRatio: "Tenure Ratio", PromotionGapRatio: "Promotion Gap Ratio", AvgSatisfaction: "Avg. Satisfaction",
+  OverTime_x_JobLevel: "Overtime x Job Level", IsJobHopper: "Job-Hopper Flag", ManagerStability: "Manager Stability",
+  BusinessTravel: "Travel", Department: "Department", EducationField: "Education Field", Gender: "Gender",
+  JobRole: "Job Role", MaritalStatus: "Marital Status", OverTime: "Overtime",
+};
+
+// ---------------------------------------------------------------
+// Render the form
+// ---------------------------------------------------------------
+function fieldHtml(f) {
+  if (f.options) {
+    const opts = f.options.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+    return `<div class="field"><label for="f-${f.name}">${f.label}</label>
+      <select id="f-${f.name}" data-name="${f.name}" data-kind="select">${opts}</select></div>`;
+  }
+  return `<div class="field"><label for="f-${f.name}">${f.label} <span class="val" id="v-${f.name}"></span></label>
+    <input type="range" id="f-${f.name}" data-name="${f.name}" data-kind="slider"
+      min="${f.min}" max="${f.max}" step="${f.step}"></div>`;
+}
+
+const GROUPS = { demographics: "group-demographics", job: "group-job", compensation: "group-compensation", satisfaction: "group-satisfaction" };
+[...SLIDER_FIELDS, ...SELECT_FIELDS].forEach(f => {
+  document.getElementById(GROUPS[f.group]).insertAdjacentHTML("beforeend", fieldHtml(f));
+});
+
+function formatSliderVal(f, v) {
+  const num = f.step < 1 ? Number(v).toFixed(2) : Math.round(v);
+  const withThousands = Math.abs(num) >= 1000 ? Number(num).toLocaleString() : num;
+  return (f.prefix ? "$" : "") + withThousands + (f.unit && !f.prefix ? " " + f.unit : "");
+}
+
+function applyProfile(raw) {
+  SLIDER_FIELDS.forEach(f => {
+    const el = document.getElementById("f-" + f.name);
+    el.value = raw[f.name];
+    document.getElementById("v-" + f.name).textContent = formatSliderVal(f, raw[f.name]);
+  });
+  SELECT_FIELDS.forEach(f => {
+    document.getElementById("f-" + f.name).value = String(raw[f.name]);
+  });
+}
+
+function readProfile() {
+  const raw = {};
+  SLIDER_FIELDS.forEach(f => { raw[f.name] = Number(document.getElementById("f-" + f.name).value); });
+  SELECT_FIELDS.forEach(f => {
+    const v = document.getElementById("f-" + f.name).value;
+    raw[f.name] = isNaN(Number(v)) ? v : Number(v);
+  });
+  // fields that share the same underlying value but different UI copies collapse naturally since name-keyed
+  return raw;
+}
+
+// ---------------------------------------------------------------
+// Default / example profiles
+// ---------------------------------------------------------------
+const DEFAULT_RAW = { ...MODEL.numeric_defaults, ...MODEL.categorical_defaults };
+// numeric_defaults also contains derived-feature defaults (IncomePerYearWorked etc.) -- harmless extras, ignored by readProfile/applyProfile since no matching input exists.
+
+const HIGH_RISK_EXAMPLE = {
+  Age: 23, DistanceFromHome: 22, MonthlyIncome: 1900, PercentSalaryHike: 12, DailyRate: 300, HourlyRate: 45,
+  MonthlyRate: 5000, NumCompaniesWorked: 4, TotalWorkingYears: 2, TrainingTimesLastYear: 1, YearsAtCompany: 1,
+  YearsInCurrentRole: 0, YearsSinceLastPromotion: 0, YearsWithCurrManager: 0,
+  Gender: "Male", MaritalStatus: "Single", Education: "2", EducationField: "Technical Degree",
+  Department: "Sales", JobRole: "Sales Representative", JobLevel: "1", BusinessTravel: "Travel_Frequently",
+  OverTime: "Yes", JobInvolvement: "2", StockOptionLevel: "0",
+  EnvironmentSatisfaction: "1", JobSatisfaction: "1", RelationshipSatisfaction: "2", WorkLifeBalance: "2", PerformanceRating: "3",
+};
+
+const LOW_RISK_EXAMPLE = {
+  Age: 45, DistanceFromHome: 3, MonthlyIncome: 11500, PercentSalaryHike: 15, DailyRate: 1100, HourlyRate: 80,
+  MonthlyRate: 18000, NumCompaniesWorked: 1, TotalWorkingYears: 22, TrainingTimesLastYear: 3, YearsAtCompany: 18,
+  YearsInCurrentRole: 10, YearsSinceLastPromotion: 2, YearsWithCurrManager: 9,
+  Gender: "Female", MaritalStatus: "Married", Education: "4", EducationField: "Medical",
+  Department: "Research & Development", JobRole: "Research Director", JobLevel: "4", BusinessTravel: "Non-Travel",
+  OverTime: "No", JobInvolvement: "4", StockOptionLevel: "2",
+  EnvironmentSatisfaction: "4", JobSatisfaction: "4", RelationshipSatisfaction: "4", WorkLifeBalance: "3", PerformanceRating: "4",
+};
+
+// ---------------------------------------------------------------
+// Feature engineering + model inference (mirrors notebook Part 4 & 5)
+// ---------------------------------------------------------------
+function buildDerived(raw) {
+  const OverTime_Flag = raw.OverTime === "Yes" ? 1 : 0;
+  const JobLevel = Number(raw.JobLevel);
+  const IncomePerYearWorked = raw.MonthlyIncome / (raw.TotalWorkingYears + 1);
+  const TenureRatio = raw.YearsAtCompany / (raw.TotalWorkingYears + 1);
+  const PromotionGapRatio = raw.YearsSinceLastPromotion / (raw.YearsAtCompany + 1);
+  const AvgSatisfaction = (Number(raw.EnvironmentSatisfaction) + Number(raw.JobSatisfaction) +
+                            Number(raw.RelationshipSatisfaction) + Number(raw.WorkLifeBalance)) / 4;
+  const OverTime_x_JobLevel = OverTime_Flag * (6 - JobLevel);
+  const IsJobHopper = (raw.NumCompaniesWorked / (raw.TotalWorkingYears + 1)) > 0.5 ? 1 : 0;
+  const ManagerStability = raw.YearsWithCurrManager / (raw.YearsAtCompany + 1);
+  return { OverTime_Flag, IncomePerYearWorked, TenureRatio, PromotionGapRatio, AvgSatisfaction,
+           OverTime_x_JobLevel, IsJobHopper, ManagerStability };
+}
+
+function predict(raw) {
+  const derived = buildDerived(raw);
+  const allValues = { ...raw, ...derived };
+
+  const terms = [];
+  let logit = MODEL.intercept;
+  let ci = 0;
+
+  MODEL.numeric.forEach(spec => {
+    const val = Number(allValues[spec.name]);
+    const z = (val - spec.mean) / spec.scale;
+    const coef = MODEL.coefficients[ci++];
+    const term = coef * z;
+    logit += term;
+    terms.push({ name: spec.name, term, isCategorical: false });
+  });
+
+  MODEL.categorical.forEach(spec => {
+    spec.categories.forEach((cat, idx) => {
+      if (idx === spec.dropped_index) return;
+      const coef = MODEL.coefficients[ci++];
+      const active = String(allValues[spec.column]) === cat ? 1 : 0;
+      const term = coef * active;
+      logit += term;
+      if (active) terms.push({ name: `${spec.column}: ${cat}`, term, isCategorical: true });
+    });
+  });
+
+  const prob = 1 / (1 + Math.exp(-logit));
+  terms.sort((a, b) => Math.abs(b.term) - Math.abs(a.term));
+  return { prob, terms };
+}
+
+// ---------------------------------------------------------------
+// Render results
+// ---------------------------------------------------------------
+function riskTier(prob) {
+  if (prob < 0.30) return { cls: "low", label: "LOW RISK" };
+  if (prob < 0.60) return { cls: "medium", label: "MEDIUM RISK" };
+  return { cls: "high", label: "HIGH RISK" };
+}
+
+function renderResult() {
+  const raw = readProfile();
+  const { prob, terms } = predict(raw);
+  const pct = prob * 100;
+
+  const tier = riskTier(prob);
+  const tagEl = document.getElementById("risk-tag");
+  tagEl.textContent = tier.label;
+  tagEl.className = "risk-label " + tier.cls;
+
+  document.getElementById("prob-figure").textContent = pct.toFixed(1) + "%";
+  document.getElementById("gauge-marker").style.left = Math.min(100, Math.max(0, pct)) + "%";
+
+  const threshold = Number(document.getElementById("threshold").value);
+  const verdictEl = document.getElementById("verdict");
+  if (prob >= threshold) {
+    verdictEl.textContent = `Predicted: AT RISK OF LEAVING (probability ${pct.toFixed(1)}% ≥ threshold ${(threshold*100).toFixed(0)}%)`;
+    verdictEl.className = "verdict risk";
+  } else {
+    verdictEl.textContent = `Predicted: RETAINED (probability ${pct.toFixed(1)}% < threshold ${(threshold*100).toFixed(0)}%)`;
+    verdictEl.className = "verdict retain";
+  }
+
+  const top = terms.slice(0, 7);
+  const maxAbs = Math.max(...top.map(t => Math.abs(t.term)), 0.0001);
+  const listEl = document.getElementById("contrib-list");
+  listEl.innerHTML = top.map(t => {
+    const pctWidth = (Math.abs(t.term) / maxAbs) * 100;
+    const positive = t.term > 0;
+    const color = positive ? "var(--status-critical)" : "var(--status-good)";
+    const side = positive ? "left:50%;" : `right:50%;`;
+    const label = FRIENDLY_NAMES[t.name] || t.name.replace(/^([A-Za-z]+): /, m => m);
+    return `<div class="contrib-row">
+        <div class="contrib-label" title="${label}">${label}</div>
+        <div class="contrib-bar-track">
+          <div class="contrib-bar-fill" style="${side} width:${(pctWidth/2).toFixed(1)}%; background:${color};"></div>
+        </div>
+        <div class="contrib-val">${positive ? "+" : ""}${t.term.toFixed(2)}</div>
+      </div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------
+// Wire up events
+// ---------------------------------------------------------------
+document.getElementById("profile-form").addEventListener("input", (e) => {
+  const el = e.target;
+  if (el.dataset.kind === "slider") {
+    const f = SLIDER_FIELDS.find(x => x.name === el.dataset.name);
+    document.getElementById("v-" + f.name).textContent = formatSliderVal(f, el.value);
+  }
+  renderResult();
+});
+
+document.getElementById("threshold").addEventListener("input", (e) => {
+  document.getElementById("threshold-val").textContent = Number(e.target.value).toFixed(2);
+  renderResult();
+});
+
+document.getElementById("btn-predict").addEventListener("click", (e) => { e.preventDefault(); renderResult(); });
+document.getElementById("btn-high-risk").addEventListener("click", (e) => { e.preventDefault(); applyProfile(HIGH_RISK_EXAMPLE); renderResult(); });
+document.getElementById("btn-low-risk").addEventListener("click", (e) => { e.preventDefault(); applyProfile(LOW_RISK_EXAMPLE); renderResult(); });
+document.getElementById("btn-reset").addEventListener("click", (e) => { e.preventDefault(); applyProfile(DEFAULT_RAW); renderResult(); });
+
+// theme toggle
+const themeBtn = document.getElementById("theme-toggle");
+themeBtn.addEventListener("click", () => {
+  const root = document.documentElement;
+  const current = root.getAttribute("data-theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDarkNow = current ? current === "dark" : prefersDark;
+  root.setAttribute("data-theme", isDarkNow ? "light" : "dark");
+});
+
+// ---------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------
+document.getElementById("model-name-badge").textContent = MODEL.model_name;
+document.getElementById("auc-badge").textContent = MODEL.metrics["ROC-AUC"].toFixed(3);
+document.getElementById("recall-badge").textContent = MODEL.metrics["Recall"].toFixed(3);
+
+const metricsFooter = document.getElementById("metrics-footer");
+[["Accuracy","Accuracy"],["Recall","Recall"],["ROC-AUC","ROC-AUC"]].forEach(([key,lab]) => {
+  metricsFooter.insertAdjacentHTML("beforeend",
+    `<div class="metric-tile"><div class="m-val">${MODEL.metrics[key].toFixed(3)}</div><div class="m-lab">${lab}</div></div>`);
+});
+
+applyProfile(DEFAULT_RAW);
+renderResult();
+</script>
